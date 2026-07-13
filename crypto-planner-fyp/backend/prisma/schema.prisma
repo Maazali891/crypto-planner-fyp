@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  kycStatus    String   @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED
+  cnicNumber   String?
+  idCardImage  String? @db.Text  // Id card ki photo ka link save karne ke liye
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  fullName      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  wallet        Wallet?
+  investments   Investment[]
+  ledgers       Ledger[]
+}
+
+model Wallet {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  usdBalance      Decimal  @default(10000.00) @db.Decimal(18, 8)
+  btcBalance      Decimal  @default(0.00000000) @db.Decimal(18, 8)
+  ethBalance      Decimal  @default(0.00000000) @db.Decimal(18, 8)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum InvestmentStatus {
+  ACTIVE
+  MATURED
+  WITHDRAWN
+}
+
+enum AssetType {
+  BTC
+  ETH
+}
+
+model Investment {
+  id                  String           @id @default(uuid())
+  userId              String
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  asset               AssetType
+  principalAmount     Decimal          @db.Decimal(18, 8)
+  currentBalance      Decimal          @db.Decimal(18, 8)
+  totalInterestEarned Decimal          @default(0.00000000) @db.Decimal(18, 8)
+
+  annualRate          Decimal          @default(0.0700) @db.Decimal(5, 4)
+  compoundFrequency   Int              @default(12)
+
+  status              InvestmentStatus @default(ACTIVE)
+  startDate           DateTime         @default(now())
+  maturityDate        DateTime?
+  lastAccrualAt       DateTime         @default(now())
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+enum LedgerType {
+  DEPOSIT
+  WITHDRAWAL
+  INTEREST_PAYOUT
+  INVESTMENT_CREATED
+  INVESTMENT_CLOSED
+}
+
+model Ledger {
+  id            String     @id @default(uuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type          LedgerType
+  asset         AssetType?
+  amount        Decimal    @db.Decimal(18, 8)
+  balanceAfter  Decimal    @db.Decimal(18, 8)
+
+  description   String?
+  metadata      Json?
+
+  createdAt     DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
