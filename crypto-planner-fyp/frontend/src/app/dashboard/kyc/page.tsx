@@ -324,3 +324,4 @@ export function KYCPage() {
     </div>
   );
 }
+export default KYCPage;
